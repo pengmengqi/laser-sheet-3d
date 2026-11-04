@@ -1,2 +1,9 @@
-# laser-sheet-3d
-Interactive 532 nm laser light-sheet optics lab with editable lenses and 3D visualization.
+# 532 nm 片光 3D 实验台
+
+交互式片光光路演示：柱面镜、球面镜、曲面和尺寸编辑，观察面片宽、1/e² 厚度和 FWHM 标注。
+
+## 发布
+
+将本目录所有文件提交到仓库根目录，然后在 Settings → Pages 选择 Deploy from a branch、main、/(root)。无需安装依赖或构建。
+
+所有 Three.js 依赖均随本目录提供。透镜计算使用近轴高斯模型，形状模式使用等效焦距，详见网页内模型说明。
