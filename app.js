@@ -3,16 +3,13 @@ import {OrbitControls} from './OrbitControls.js';
 import {sizeAt,design} from './optics.js';
 import {normalizeLens,shapeNames,presetRadii,radii,focalLength,surfaceAt,shapeIssue,shapeValid} from './shapes.js';
 import {dimensionModel,dimColors,formatMm} from './dimensions.js';
-const $=s=>document.querySelector(s), storageKey='laser-sheet-3d-v1';
-let state={diameter:1,m2:1,end:500,target:.75,enhance:true,rays:true,lenses:[]};
-state.lenses=design(state,.75);
+const $=s=>document.querySelector(s);
+let state={diameter:1,m2:1,end:400,target:.75,enhance:true,rays:true,lenses:[{id:1,type:'y',z:20,f:-15,aperture:12,height:10,enabled:true,mode:'focal',form:'planoConcave',outline:'rectangle',thickness:2,n:1.52,r1:-7.8,r2:0}]};
 function valid(s){return s&&Number.isFinite(s.diameter)&&s.diameter>=.1&&s.diameter<=20&&Number.isFinite(s.m2)&&s.m2>=1&&s.m2<=10&&Number.isFinite(s.end)&&s.end>=150&&s.end<=3000&&Number.isFinite(s.target)&&s.target>=.5&&s.target<=2&&typeof s.enhance==='boolean'&&typeof s.rays==='boolean'&&Array.isArray(s.lenses)&&s.lenses.length<=12&&s.lenses.every(l=>['x','y','sphere'].includes(l.type)&&Number.isFinite(l.z)&&l.z>=0&&l.z<=3000&&Number.isFinite(l.f)&&Math.abs(l.f)>=1&&Math.abs(l.f)<=1e12&&Number.isFinite(l.aperture)&&l.aperture>=1&&l.aperture<=150&&typeof l.enabled==='boolean'&&shapeValid(normalizeLens(l)));}
-try{const s=JSON.parse(localStorage.getItem(storageKey));if(valid(s))state=s;}catch{}
 state.lenses=state.lenses.map(normalizeLens);
 let selected=0,currentView='perspective',renderer,scene,camera,orbit,opticalGroup,beamGroup,pickables=[],activeDimension=null;
 const stage=$('#stage'),canvas=$('#scene');
 function notify(message){$('#notice').textContent=message;$('#notice').hidden=!message;}
-function save(){try{localStorage.setItem(storageKey,JSON.stringify(state));}catch{}}
 function scales(){return state.enhance?{w:3,t:30}:{w:1,t:1};}
 function point(z,x=0,y=0){const s=scales();return new THREE.Vector3(z,y*s.t,x*s.w);}
 function dispose(group){while(group.children.length){const child=group.children[0];group.remove(child);child.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material]){m.map?.dispose();m.dispose();}}});}}
@@ -142,7 +139,7 @@ function drawCross(){
 function update({reframe=false}={}){const out=sizeAt(state,state.end);$('#thickness').innerHTML=`${out.thickness.toFixed(3)} <small>mm</small>`;$('#width').innerHTML=`${out.width.toFixed(2)} <small>mm</small>`;$('#fwhm').innerHTML=`${(out.thickness*Math.sqrt(Math.log(2)/2)).toFixed(3)} <small>mm</small>`;$('#lens-count').textContent=`${state.lenses.filter(l=>l.enabled).length} 片启用`;$('#scale-label').textContent=state.enhance?'片宽 ×3 · 厚度 ×30':'全部按真实比例';const warnings=[];
  if(out.thickness<.5-1e-6||out.thickness>2+1e-6)warnings.push('观察面厚度超出 0.5–2 mm');
  state.lenses.forEach((l,i)=>{if(!l.enabled)return;if(l.z>=state.end){warnings.push(`L${i+1} 位于观察面之后`);return;}const issue=shapeIssue(l);if(issue)warnings.push(`L${i+1} ${issue}，橙色线框仅示位置`);const o=sizeAt(state,l.z);if((l.outline==='rectangle'?(o.width>l.aperture*.8||o.thickness>l.height*.8):Math.max(o.width,o.thickness)>l.aperture*.8))warnings.push(`L${i+1} 口径可能截光，结果未计截光效应`);const powered=l.type==='x'?o.width:l.type==='y'?o.thickness:Math.max(o.width,o.thickness);if(powered/2/Math.abs(l.f)>.2)warnings.push(`L${i+1} 超出较小近轴角度`);});
- $('#status').textContent=warnings.length?warnings.join('；')+'。':`观察面 Z = ${state.end} mm，宽厚比 ${(out.width/out.thickness).toFixed(1)}:1。当前厚度处于目标调节范围内。`;build();drawCross();drawProfile();if(reframe)view();save();}
+ $('#status').textContent=warnings.length?warnings.join('；')+'。':`观察面 Z = ${state.end} mm，宽厚比 ${(out.width/out.thickness).toFixed(1)}:1。当前厚度处于目标调节范围内。`;build();drawCross();drawProfile();if(reframe)view();}
 function renderLenses(){
  const list=$('#lens-list');list.replaceChildren();
  state.lenses.forEach((l,index)=>{
@@ -184,7 +181,7 @@ function renderLenses(){
 }
 function sync(){for(const k of ['diameter','m2','end','target'])$('#'+k).value=state[k];for(const k of ['enhance','rays'])$('#'+k).checked=state[k];$('#target-output').textContent=state.target.toFixed(2)+' mm';renderLenses();}
 for(const k of ['diameter','m2','end'])$('#'+k).onchange=e=>{const v=Number(e.target.value);if(!e.target.value||!e.target.checkValidity()||!Number.isFinite(v)){e.target.value=state[k];return;}state[k]=v;notify('');update({reframe:k==='end'});};
-$('#target').oninput=e=>{state.target=Number(e.target.value);$('#target-output').textContent=state.target.toFixed(2)+' mm';save();};$('#design').onclick=()=>{try{state.lenses=design(state,state.target).map(normalizeLens);selected=0;notify('');renderLenses();update({reframe:true});}catch(e){notify(e.message);}};
+$('#target').oninput=e=>{state.target=Number(e.target.value);$('#target-output').textContent=state.target.toFixed(2)+' mm';};$('#design').onclick=()=>{try{state.lenses=design(state,state.target).map(normalizeLens);selected=0;notify('');renderLenses();update({reframe:true});}catch(e){notify(e.message);}};
 for(const k of ['enhance','rays'])$('#'+k).onchange=e=>{state[k]=e.target.checked;update({reframe:k==='enhance'});};
 $('#add').onclick=()=>{if(state.lenses.length>=12)return;state.lenses.push(normalizeLens({id:Date.now(),type:'y',z:Math.round(state.end*.5),f:200,aperture:25.4,enabled:true}));selected=state.lenses.length-1;renderLenses();update();};
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));$('#reset-camera').onclick=()=>view('perspective');
