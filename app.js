@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import {OrbitControls} from './OrbitControls.js';
 import {sizeAt,design} from './optics.js';
-import {normalizeLens,shapeNames,presetRadii,radii,focalLength,surfaceAt,shapeIssue,shapeValid} from './shapes.js';
-import {dimensionModel,dimColors,formatMm} from './dimensions.js';
+import {normalizeLens,rodLens,shapeNames,presetRadii,radii,focalLength,surfaceAt,shapeIssue,shapeValid} from './shapes.js?v=20261104-rod';
+import {dimensionModel,dimColors,formatMm} from './dimensions.js?v=20261104-rod';
 const $=s=>document.querySelector(s);
 let state={diameter:1,m2:1,end:400,target:.75,enhance:true,rays:true,lenses:[{id:1,type:'y',z:20,f:-15,aperture:12,height:10,enabled:true,mode:'focal',form:'planoConcave',outline:'rectangle',thickness:2,n:1.52,r1:-7.8,r2:0}]};
-function valid(s){return s&&Number.isFinite(s.diameter)&&s.diameter>=.1&&s.diameter<=20&&Number.isFinite(s.m2)&&s.m2>=1&&s.m2<=10&&Number.isFinite(s.end)&&s.end>=150&&s.end<=3000&&Number.isFinite(s.target)&&s.target>=.5&&s.target<=2&&typeof s.enhance==='boolean'&&typeof s.rays==='boolean'&&Array.isArray(s.lenses)&&s.lenses.length<=12&&s.lenses.every(l=>['x','y','sphere'].includes(l.type)&&Number.isFinite(l.z)&&l.z>=0&&l.z<=3000&&Number.isFinite(l.f)&&Math.abs(l.f)>=1&&Math.abs(l.f)<=1e12&&Number.isFinite(l.aperture)&&l.aperture>=1&&l.aperture<=150&&typeof l.enabled==='boolean'&&shapeValid(normalizeLens(l)));}
+function valid(s){return s&&Number.isFinite(s.diameter)&&s.diameter>=.1&&s.diameter<=20&&Number.isFinite(s.m2)&&s.m2>=1&&s.m2<=10&&Number.isFinite(s.end)&&s.end>=150&&s.end<=3000&&Number.isFinite(s.target)&&s.target>=.5&&s.target<=2&&typeof s.enhance==='boolean'&&typeof s.rays==='boolean'&&Array.isArray(s.lenses)&&s.lenses.length<=12&&s.lenses.every(l=>['x','y','sphere'].includes(l.type)&&Number.isFinite(l.z)&&l.z>=0&&l.z<=3000&&Number.isFinite(l.f)&&Math.abs(l.f)>=(l.form==='rod'?.1:1)&&Math.abs(l.f)<=1e12&&Number.isFinite(l.aperture)&&l.aperture>=1&&l.aperture<=150&&typeof l.enabled==='boolean'&&shapeValid(normalizeLens(l)));}
 state.lenses=state.lenses.map(normalizeLens);
 let selected=0,currentView='perspective',renderer,scene,camera,orbit,opticalGroup,beamGroup,pickables=[],activeDimension=null;
 const stage=$('#stage'),canvas=$('#scene');
@@ -59,6 +59,7 @@ function drawDimensions(){
 function applyFocus(){if(!opticalGroup)return;for(const obj of opticalGroup.children)obj.visible=currentView==='lens'?obj.userData.lensIndex===selected:currentView==='end'?!!obj.userData.observation:true;beamGroup.visible=currentView!=='lens';for(const obj of beamGroup.children)obj.visible=currentView!=='end'||!!obj.userData.observationContour;}
 function view(name=currentView){currentView=name;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));if(!renderer)return;const L=state.end,center=new THREE.Vector3(L/2,0,0),extent=Math.max(L*.92,sizeAt(state,L).width*scales().w);orbit.target.copy(center);camera.up.set(0,1,0);if(name==='lens'&&state.lenses[selected]){const l=state.lenses[selected],d=Math.max(l.aperture,l.height,l.thickness)*scales().w;orbit.target.set(l.z,0,0);camera.position.set(l.z+d*1.5,d*.8,d*1.4);}else if(name==='top'){camera.position.set(L/2,extent*1.8,0);camera.up.set(-1,0,0);}else if(name==='side'){camera.position.set(L/2,0,extent*1.8);}else if(name==='end'){const span=Math.max(sizeAt(state,L).width*scales().w,sizeAt(state,L).thickness*scales().t);const distance=Math.max(10,span/Math.min(camera.aspect,1)/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))*1.65);camera.position.set(L+distance,0,0);orbit.target.set(L,0,0);}else camera.position.set(L*.98,extent*.65,extent*.95);camera.lookAt(orbit.target);applyFocus();orbit.update();render();}
 function lensGeometry(l,visualScale){
+ if(l.form==='rod'){const g=new THREE.CylinderGeometry(l.rodDiameter/2,l.rodDiameter/2,l.rodLength,80,1,false);if(l.type==='y')g.rotateX(Math.PI/2);g.scale(visualScale,visualScale,visualScale);return g;}
  const N=30,positions=[],indices=[],stride=N+1,layer=stride*stride;
  for(let side=0;side<2;side++)for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
   const u=i/N*2-1,v=j/N*2-1;
@@ -85,7 +86,7 @@ function drawProfile(){
  const leftLabel=12,rightLabel=W-12;c.textAlign='left';c.fillStyle=dimColors.r1;c.fillText('R1 · 前表面曲率',leftLabel,43);c.fillText(d.r.r1===0?'平面（R1＝0）':formatMm(d.r.r1)+' mm',leftLabel,60);stroke([[leftLabel+55,65],[xp(p.front),yp(h)]],'r1',true);mark(xp(p.front),yp(h),'r1');
  c.textAlign='right';c.fillStyle=dimColors.r2;c.fillText('R2 · 后表面曲率',rightLabel,43);c.fillText(d.r.r2===0?'平面（R2＝0）':formatMm(d.r.r2)+' mm',rightLabel,60);stroke([[rightLabel-55,65],[xp(back.back),yp(-h)]],'r2',true);mark(xp(back.back),yp(-h),'r2');
  const apertureKey=l.type==='y'&&l.outline==='rectangle'?'height':'aperture';const dx=xp(min)-22,top=yp(aperture/2),bottom=yp(-aperture/2);stroke([[dx,top],[dx,bottom]],apertureKey);for(const y of [top,bottom]){stroke([[dx-4,y],[dx+4,y]],apertureKey);stroke([[dx,y],[xp(min),y]],apertureKey,true);}
- c.textAlign='left';c.fillStyle=dimColors.aperture;c.fillText(l.outline==='circle'?'直径 D':l.type==='y'?'高度 Y':'宽度 X',12,130);c.fillText(formatMm(aperture)+' mm',12,148);stroke([[15,155],[dx,155]],apertureKey,true);
+ c.textAlign='left';c.fillStyle=dimColors.aperture;c.fillText(l.form==='rod'?'圆柱直径 D':l.outline==='circle'?'直径 D':l.type==='y'?'高度 Y':'宽度 X',12,130);c.fillText(formatMm(aperture)+' mm',12,148);stroke([[15,155],[dx,155]],apertureKey,true);
  const center=surfaceAt(l,0,0),x1=xp(center.front),x2=xp(center.back),ctY=232;stroke([[x1,yp(0)],[x2,yp(0)]],'thickness');mark(x1,yp(0),'thickness');mark(x2,yp(0),'thickness');stroke([[x1,yp(0)],[x1,ctY]],'thickness',true);stroke([[x2,yp(0)],[x2,ctY]],'thickness',true);stroke([[x1,ctY],[x2,ctY]],'thickness');for(const x of [x1,x2])stroke([[x,ctY-4],[x,ctY+4]],'thickness');c.textAlign='center';c.fillStyle=dimColors.thickness;c.fillText(d.labels.thickness,W/2,251);
  c.textAlign='left';c.fillStyle='#94a79b';c.fillText('入射 → Z',12,H-5);c.textAlign='right';c.fillText('长宽同尺度',W-12,H-5);c.textAlign='left';
 }
@@ -144,25 +145,28 @@ function renderLenses(){
  const list=$('#lens-list');list.replaceChildren();
  state.lenses.forEach((l,index)=>{
  const el=document.createElement('div');el.className='lens'+(selected===index?' selected':'');
- const r=radii(l)||{r1:0,r2:0},curved=l.mode==='curvature';
+ const r=radii(l)||{r1:0,r2:0},curved=l.mode==='curvature',isRod=l.form==='rod';
  el.innerHTML=`<div class="lens-head"><label><input type="checkbox" data-key="enabled">L${index+1}</label><button type="button" class="focus-lens" aria-label="查看透镜 L${index+1} 特写">特写 ↗</button><button type="button" class="remove-lens" aria-label="删除透镜 L${index+1}">移除 ×</button></div>
- <label>透镜类型<select data-key="type"><option value="x">柱面镜 · X 方向展宽</option><option value="y">柱面镜 · Y 方向控厚</option><option value="sphere">球面镜 · 两轴同时作用</option></select></label>
+ <label>透镜类型<select data-key="type"><option value="x">柱面镜 · X 方向展宽</option><option value="y">柱面镜 · Y 方向控厚</option><option value="sphere">球面镜 · 两轴同时作用</option><option value="rodX">纯圆柱透镜 · X 方向聚焦（轴沿 Y）</option><option value="rodY">纯圆柱透镜 · Y 方向聚焦（轴沿 X）</option></select></label>
  <div class="field-grid"><label>位置 Z / mm<input type="number" min="0" max="3000" step="any" data-key="z"></label><label>${curved?'等效焦距 f':'焦距 f'} / mm<input type="number" min="-1000000000000" max="1000000000000" step="any" data-key="f" ${curved?'disabled':''}></label></div>
  <details class="shape-controls" ${index===selected?'open':''}><summary>外形与曲面 · ${shapeNames[l.form]}</summary>
- <label>控制方式<select data-key="mode"><option value="focal">按焦距选形状</option><option value="curvature">按曲率计算焦距</option></select></label>
- <label>曲面形状<select data-key="form"><option value="planoConvex">平凸</option><option value="biconvex">双凸</option><option value="planoConcave">平凹</option><option value="biconcave">双凹</option><option value="meniscus">弯月</option>${curved?'<option value="custom">自定义 R1 / R2</option>':''}</select></label>
- <label>口径外形<select data-key="outline"><option value="circle">圆形</option><option value="rectangle">矩形</option></select></label>
- <div class="field-grid"><label>${l.outline==='circle'?'直径 D':'宽度 X'} / mm<input type="number" min="1" max="150" step="any" data-key="aperture"></label><label>高度 Y / mm<input type="number" min="1" max="150" step="any" data-key="height" ${l.outline==='circle'?'disabled':''}></label></div>
- <div class="field-grid"><label>中心厚度 / mm<input type="number" min="0.1" max="100" step="any" data-key="thickness"></label><label>折射率 n @532nm<input type="number" min="1.1" max="2.5" step="any" data-key="n"></label></div>
- <div class="field-grid"><label>前表面 R1 / mm<input type="number" min="-10000000" max="10000000" step="any" data-key="r1" ${curved?'':'disabled'}></label><label>后表面 R2 / mm<input type="number" min="-10000000" max="10000000" step="any" data-key="r2" ${curved?'':'disabled'}></label></div>
+ <label>控制方式<select data-key="mode" ${isRod?'disabled':''}><option value="focal">按焦距选形状</option><option value="curvature">${isRod?'由圆柱尺寸计算焦距':'按曲率计算焦距'}</option></select></label>
+ <label>曲面形状<select data-key="form"><option value="planoConvex">平凸</option><option value="biconvex">双凸</option><option value="planoConcave">平凹</option><option value="biconcave">双凹</option><option value="meniscus">弯月</option><option value="rod">纯圆柱（完整玻璃棒）</option>${curved?'<option value="custom">自定义 R1 / R2</option>':''}</select></label>
+ ${isRod?`<div class="field-grid"><label>圆柱直径 D / mm<input type="number" min="1" max="100" step="any" data-key="rodDiameter"></label><label>圆柱长度 L / mm<input type="number" min="1" max="150" step="any" data-key="rodLength"></label></div><p class="hint">光穿过圆柱侧面。直径、长度与折射率可调；轴向厚度等于直径，R1＝D/2，R2＝−D/2，焦距由尺寸自动计算。</p>`:''}<label>口径外形<select data-key="outline" ${isRod?'disabled':''}><option value="circle">圆形</option><option value="rectangle">矩形</option></select></label>
+ <div class="field-grid"><label>${l.outline==='circle'?'直径 D':'宽度 X'} / mm<input type="number" min="1" max="150" step="any" data-key="aperture" ${isRod?'disabled':''}></label><label>高度 Y / mm<input type="number" min="1" max="150" step="any" data-key="height" ${isRod||l.outline==='circle'?'disabled':''}></label></div>
+ <div class="field-grid"><label>中心厚度 / mm<input type="number" min="0.1" max="100" step="any" data-key="thickness" ${isRod?'disabled':''}></label><label>折射率 n @532nm<input type="number" min="1.1" max="2.5" step="any" data-key="n"></label></div>
+ <div class="field-grid"><label>前表面 R1 / mm<input type="number" min="-10000000" max="10000000" step="any" data-key="r1" ${curved&&!isRod?'':'disabled'}></label><label>后表面 R2 / mm<input type="number" min="-10000000" max="10000000" step="any" data-key="r2" ${curved&&!isRod?'':'disabled'}></label></div>
  <p class="hint">R＝0 表示平面。R 正值：曲率中心在传播方向前方。光路按等效薄透镜计算。</p></details>`;
  el.querySelectorAll('[data-key]').forEach(input=>{
   input.onfocus=()=>{const changed=selected!==index;selected=index;activeDimension=input.dataset.key;document.querySelectorAll('#lens-list .lens').forEach((row,i)=>row.classList.toggle('selected',i===selected));if(changed){build();if(currentView==='lens')view();}else render();drawProfile();};
-  const k=input.dataset.key,val=(k==='r1'||k==='r2')?r[k]:l[k];
+  const k=input.dataset.key,val=k==='type'&&isRod?(l.type==='x'?'rodX':'rodY'):(k==='r1'||k==='r2')?r[k]:l[k];
   if(k==='enabled')input.checked=val;else input.value=typeof val==='number'?Number(val.toFixed(4)):val;
   input.onchange=()=>{
    const before={...l},isString=['type','mode','form','outline'].includes(k),value=k==='enabled'?input.checked:isString?input.value:Number(input.value);
-   if(!isString&&k!=='enabled'&&(!input.value||!input.checkValidity()||!Number.isFinite(value)||(k==='f'&&Math.abs(value)<1)||(['r1','r2'].includes(k)&&value!==0&&Math.abs(value)<.1))){notify('请输入有效参数；R＝0 为平面，非零半径绝对值至少为 0.1 mm。');input.value=val;return;}
+   if(!isString&&k!=='enabled'&&(!input.value||!input.checkValidity()||!Number.isFinite(value)||(k==='f'&&Math.abs(value)<(isRod?.1:1))||(['r1','r2'].includes(k)&&value!==0&&Math.abs(value)<.1))){notify('请输入有效参数；R＝0 为平面，非零半径绝对值至少为 0.1 mm。');input.value=val;return;}
+   if((k==='type'&&['rodX','rodY'].includes(value))||(k==='form'&&value==='rod')){Object.assign(l,rodLens({...l,type:k==='type'?(value==='rodX'?'x':'y'):(l.type==='sphere'?'y':l.type)}));selected=index;notify('');renderLenses();update();if(currentView==='lens')view();return;}
+   if(isRod&&k!=='form'&&k!=='type'){l[k]=value;Object.assign(l,rodLens(l));selected=index;notify('');renderLenses();update();if(currentView==='lens')view();return;}
+   if(isRod){l.form='biconvex';l.mode='curvature';l.r1=Math.max(l.aperture,l.height,10)*2;l.r2=-l.r1;l.thickness=3;}
    if(k==='mode'&&value==='curvature'){const old=radii(l);if(old)Object.assign(l,old);}
    l[k]=value;
    if(k==='mode'&&value==='focal'&&l.form==='custom')l.form=l.f<0?'biconcave':'biconvex';
@@ -177,7 +181,7 @@ function renderLenses(){
  });
  el.querySelector('.focus-lens').onclick=()=>{selected=index;renderLenses();build();drawProfile();view('lens');};
  el.querySelector('.remove-lens').onclick=()=>{state.lenses.splice(index,1);selected=Math.max(0,Math.min(selected,state.lenses.length-1));renderLenses();update();};list.append(el);
- });$('#add').disabled=state.lenses.length>=12;
+ });$('#add').disabled=state.lenses.length>=12;$('#add-rod').disabled=state.lenses.length>=12;
 }
 function sync(){for(const k of ['diameter','m2','end','target'])$('#'+k).value=state[k];for(const k of ['enhance','rays'])$('#'+k).checked=state[k];$('#target-output').textContent=state.target.toFixed(2)+' mm';renderLenses();}
 for(const k of ['diameter','m2','end'])$('#'+k).onchange=e=>{const v=Number(e.target.value);if(!e.target.value||!e.target.checkValidity()||!Number.isFinite(v)){e.target.value=state[k];return;}state[k]=v;notify('');update({reframe:k==='end'});};
@@ -187,4 +191,5 @@ $('#add').onclick=()=>{if(state.lenses.length>=12)return;state.lenses.push(norma
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));$('#reset-camera').onclick=()=>view('perspective');
 $('#export').onclick=()=>{const blob=new Blob([JSON.stringify({format:'laser-sheet-3d-v1',wavelength_nm:532,power_W:.5,state},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='laser-sheet-532nm.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
 $('#import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>50000)throw new Error('方案文件过大。');const obj=JSON.parse(await file.text());if(!valid(obj.state))throw new Error('方案格式或参数范围不正确。');state=obj.state;state.lenses=state.lenses.map(normalizeLens);selected=0;sync();update({reframe:true});notify('方案已导入。');}catch(err){notify(err.message);}e.target.value='';};
+$('#add-rod').onclick=()=>{if(state.lenses.length>=12)return;state.lenses.push(rodLens({id:Date.now(),type:'y',z:Math.round(state.end*.5),enabled:true,rodDiameter:10,rodLength:20,n:1.52}));selected=state.lenses.length-1;renderLenses();update();view('lens');};
 init();sync();update({reframe:true});resize();

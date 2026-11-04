@@ -1,5 +1,10 @@
-export const shapeNames={planoConvex:'平凸',biconvex:'双凸',planoConcave:'平凹',biconcave:'双凹',meniscus:'弯月',custom:'自定义曲面'};
+export const shapeNames={planoConvex:'平凸',biconvex:'双凸',planoConcave:'平凹',biconcave:'双凹',meniscus:'弯月',rod:'纯圆柱（玻璃棒）',custom:'自定义曲面'};
+export function rodLens(l){
+ const rodDiameter=l.rodDiameter??10,rodLength=l.rodLength??20,n=l.n??1.52,type=l.type==='x'?'x':'y';
+ return {...l,form:'rod',type,rodDiameter,rodLength,n,mode:'curvature',outline:'rectangle',aperture:type==='x'?rodDiameter:rodLength,height:type==='x'?rodLength:rodDiameter,thickness:rodDiameter,r1:rodDiameter/2,r2:-rodDiameter/2,f:n*rodDiameter/(4*(n-1))};
+}
 export function normalizeLens(l){
+ if(l.form==='rod')return rodLens(l);
  return {...l,mode:l.mode||'focal',form:l.form||(l.f<0?'biconcave':'biconvex'),outline:l.outline||'circle',height:l.height??l.aperture,thickness:l.thickness??3,n:l.n??1.52,r1:l.r1??0,r2:l.r2??0};
 }
 export function presetRadii(l,form=l.form){
@@ -25,11 +30,12 @@ export function focalRadii(l){
  const disc=k*k-p*k*k*t/l.n;if(disc<0)return null;
  const r=(k+Math.sqrt(disc))/p;return {r1:r,r2:-r};
 }
-export function radii(l){return l.mode==='curvature'?{r1:l.r1,r2:l.r2}:focalRadii(l);}
+export function radii(l){if(l.form==='rod')return {r1:l.rodDiameter/2,r2:-l.rodDiameter/2};return l.mode==='curvature'?{r1:l.r1,r2:l.r2}:focalRadii(l);}
 export function focalLength(l){const r=radii(l);if(!r)return NaN;const a=r.r1===0?0:1/r.r1,b=r.r2===0?0:1/r.r2,k=l.n-1,p=k*(a-b+k*l.thickness*a*b/l.n);return Math.abs(p)<1e-12?Infinity:1/p;}
 export function sag(r,h){if(r===0)return 0;return h*h/(r+Math.sign(r)*Math.sqrt(Math.max(0,r*r-h*h)));}
 export function surfaceAt(l,x,y){const r=radii(l);if(!r)return {front:-l.thickness/2,back:l.thickness/2};const h=l.type==='sphere'?Math.hypot(x,y):Math.abs(l.type==='x'?x:y);return {front:-l.thickness/2+sag(r.r1,h),back:l.thickness/2+sag(r.r2,h)};}
 export function shapeIssue(l){
+ if(l.form==='rod')return shapeValid(l)?'':'圆柱直径、长度或折射率超出范围';
  const r=radii(l);if(!r)return '该焦距与厚度没有所选形状的实数曲率解';
  const h=l.type==='sphere'?(l.outline==='circle'?l.aperture/2:Math.hypot(l.aperture,l.height)/2):l.type==='x'?l.aperture/2:(l.outline==='rectangle'?l.height:l.aperture)/2;
  if([r.r1,r.r2].some(v=>v!==0&&Math.abs(v)<=h))return '曲率半径不足以覆盖口径，请减小口径或增大半径';
@@ -37,4 +43,4 @@ export function shapeIssue(l){
  if(edge.back-edge.front<=.05)return '两曲面在口径内相交，请增大中心厚度或减小口径';
  return '';
 }
-export function shapeValid(l){return ['focal','curvature'].includes(l.mode)&&Object.hasOwn(shapeNames,l.form)&&['circle','rectangle'].includes(l.outline)&&Number.isFinite(l.height)&&l.height>=1&&l.height<=150&&Number.isFinite(l.thickness)&&l.thickness>=.1&&l.thickness<=100&&Number.isFinite(l.n)&&l.n>=1.1&&l.n<=2.5&&[l.r1,l.r2].every(r=>Number.isFinite(r)&&Math.abs(r)<=1e7&&(r===0||Math.abs(r)>=.1));}
+export function shapeValid(l){return (l.form!=='rod'||(['x','y'].includes(l.type)&&Number.isFinite(l.rodDiameter)&&l.rodDiameter>=1&&l.rodDiameter<=100&&Number.isFinite(l.rodLength)&&l.rodLength>=1&&l.rodLength<=150))&&['focal','curvature'].includes(l.mode)&&Object.hasOwn(shapeNames,l.form)&&['circle','rectangle'].includes(l.outline)&&Number.isFinite(l.height)&&l.height>=1&&l.height<=150&&Number.isFinite(l.thickness)&&l.thickness>=.1&&l.thickness<=100&&Number.isFinite(l.n)&&l.n>=1.1&&l.n<=2.5&&[l.r1,l.r2].every(r=>Number.isFinite(r)&&Math.abs(r)<=1e7&&(r===0||Math.abs(r)>=.1));}
