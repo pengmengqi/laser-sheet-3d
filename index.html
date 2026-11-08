@@ -15,9 +15,9 @@
  <aside>
   <section class="control-section"><div class="section-title"><h2>01 <span>入射与观察面</span></h2></div><div class="field-grid"><label>入射束径 <span>mm · 1/e²</span><input id="diameter" type="number" min="0.1" max="20" step="0.1" value="1"></label><label>光束质量 <span>M²</span><input id="m2" type="number" min="1" max="10" step="0.1" value="1"></label></div><label>观察面位置 Z <span>mm</span><input id="end" type="number" min="150" max="3000" step="10" value="400"></label></section>
   <section class="control-section"><div class="section-title"><h2>02 <span>目标片光厚度</span></h2><output id="target-output">0.75 mm</output></div><input id="target" type="range" min="0.5" max="2" step="0.05" value="0.75" aria-label="目标厚度"><div class="range-labels"><span>0.5 mm</span><span>2.0 mm</span></div><button id="design" class="primary">生成双柱面镜方案 <span>↗</span></button><p class="hint">根据当前束径和距离计算焦距，替换下方配置。</p></section>
-  <section class="control-section"><div class="section-title"><h2>03 <span>透镜配置</span></h2><button id="add" class="text-button">＋ 添加</button></div><button id="add-rod" class="quiet">＋ 纯圆柱透镜（玻璃棒）</button><div id="lens-list"></div></section>
+  <section class="control-section"><div class="section-title"><h2>03 <span>透镜配置</span></h2><button id="add" class="text-button">＋ 添加</button></div><button id="add-rod" class="quiet">＋ 纯圆柱透镜（玻璃棒）</button><button id="add-powell" class="quiet">＋ 鲍威尔棱镜（扇形匀光）</button><div id="lens-list"></div></section>
   <div class="config-actions"><button id="export" class="quiet">导出方案 JSON ↓</button><label class="quiet import-label">导入方案<input id="import" type="file" accept="application/json,.json" hidden></label></div>
   <div class="notice" id="notice" role="alert" hidden></div>
  </aside>
 </main><footer><span>532 / LIGHT SHEET</span><span>本地交互计算 · 打开即载入默认方案 · 可导入/导出配置</span></footer>
-<script type="module" src="./app.js?v=20261104-rod"></script></body></html>
+<script type="module" src="./app.js?v=20261108-powell"></script></body></html>

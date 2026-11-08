@@ -1,4 +1,4 @@
-import {radii,surfaceAt} from './shapes.js?v=20261104-rod';
+import {radii,surfaceAt} from './shapes.js?v=20261108-powell';
 export const dimColors={aperture:'#b2f39b',height:'#b2f39b',thickness:'#f6cf83',r1:'#8ddaf8',r2:'#f3ae91'};
 export function formatMm(value){return Math.abs(value)>=10000?value.toExponential(2):Number(value.toFixed(3)).toString();}
 export function dimensionModel(l){
